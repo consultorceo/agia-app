@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "AGIA",
+    "slug": "agia-fmcdatalab",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0A1628"
+    },
+    "android": {
+      "package": "com.fmcdatalab.agia",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#1A3A5C"
+      },
+      "intentFilters": [
+        {
+          "action": "android.intent.action.SEND",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": [{ "mimeType": "text/plain" }]
+        }
+      ]
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.fmcdatalab.agia"
+    }
+  }
+}
