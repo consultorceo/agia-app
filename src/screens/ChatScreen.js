@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Share, Clipboard, Alert,
+  KeyboardAvoidingView, Platform, Alert, Clipboard,
 } from 'react-native';
 import { API_URL, USUARIO_ID, COLORES, FRENTES_COLORES } from '../constants';
 
@@ -12,7 +12,7 @@ const BurbujaMensaje = ({ item }) => {
 
   const copiarTexto = () => {
     Clipboard.setString(item.texto);
-    Alert.alert('Copiado', 'Puede pegarlo en WhatsApp ahora.');
+    Alert.alert('Copiado', 'Listo para pegar en WhatsApp.');
   };
 
   return (
@@ -24,14 +24,8 @@ const BurbujaMensaje = ({ item }) => {
         onLongPress={!esUsuario ? copiarTexto : undefined}
         activeOpacity={0.8}
       >
-        <View style={[
-          estilos.burbuja,
-          esUsuario ? estilos.burbujaUsuario : estilos.burbujaAGIA,
-        ]}>
-          <Text style={[
-            estilos.textoBurbuja,
-            esUsuario && estilos.textoUsuario,
-          ]}>
+        <View style={[estilos.burbuja, esUsuario ? estilos.burbujaUsuario : estilos.burbujaAGIA]}>
+          <Text style={[estilos.textoBurbuja, esUsuario && estilos.textoUsuario]}>
             {item.texto}
           </Text>
           {!esUsuario && item.frente && item.frente !== 'general' && (
@@ -45,7 +39,7 @@ const BurbujaMensaje = ({ item }) => {
       </TouchableOpacity>
       {!esUsuario && item.requiereAprobacion && (
         <View style={estilos.aprobacionRow}>
-          <Text style={estilos.aprobacionTexto}>¿Aprobás el borrador?</Text>
+          <Text style={estilos.aprobacionTexto}>¿Aprueba el borrador?</Text>
           <TouchableOpacity style={estilos.btnSi} onPress={() => item.onAprobar?.()}>
             <Text style={estilos.btnSiTexto}>Sí, enviar</Text>
           </TouchableOpacity>
@@ -58,38 +52,22 @@ const BurbujaMensaje = ({ item }) => {
   );
 };
 
-const IndicadorEscribiendo = () => (
-  <View style={estilos.contenedorBurbuja}>
-    <Text style={estilos.etiqueta}>AGIA</Text>
-    <View style={[estilos.burbuja, estilos.burbujaAGIA, estilos.burbujaEscribiendo]}>
-      <ActivityIndicator size="small" color={COLORES.azulLight} />
-      <Text style={estilos.textoEscribiendo}>Procesando...</Text>
-    </View>
-  </View>
-);
-
 export default function ChatScreen({ route }) {
-  const [mensajes, setMensajes] = useState([]);
+  const [mensajes, setMensajes] = useState([{
+    id: 'welcome',
+    tipo: 'agia',
+    texto: 'Buenos días, Horacio. Estoy listo para ayudarle. Escríbame lo que necesita.',
+    frente: 'general',
+  }]);
   const [entrada, setEntrada] = useState('');
   const [cargando, setCargando] = useState(false);
   const listaRef = useRef(null);
 
-  // Recibir mensaje compartido desde WhatsApp
   useEffect(() => {
     if (route?.params?.mensajeCompartido) {
       setEntrada(route.params.mensajeCompartido);
     }
   }, [route?.params?.mensajeCompartido]);
-
-  // Mensaje de bienvenida
-  useEffect(() => {
-    setMensajes([{
-      id: 'welcome',
-      tipo: 'agia',
-      texto: 'Buenos días, Carlos. Estoy listo para ayudarle. Puede escribirme, dictarme o reenviarme mensajes de WhatsApp.',
-      frente: 'general',
-    }]);
-  }, []);
 
   const agregarMensaje = (msg) => {
     setMensajes(prev => [...prev, { id: Date.now().toString() + Math.random(), ...msg }]);
@@ -99,21 +77,17 @@ export default function ChatScreen({ route }) {
   const enviar = async () => {
     const texto = entrada.trim();
     if (!texto || cargando) return;
-
     setEntrada('');
     agregarMensaje({ tipo: 'user', texto });
     setCargando(true);
-
     try {
       const res = await fetch(`${API_URL}/mensaje`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ usuarioId: USUARIO_ID, mensaje: texto }),
       });
-
       const data = await res.json();
       setCargando(false);
-
       if (data?.respuesta?.mensaje) {
         agregarMensaje({
           tipo: 'agia',
@@ -146,38 +120,23 @@ export default function ChatScreen({ route }) {
       if (data?.respuesta?.mensaje) {
         agregarMensaje({ tipo: 'agia', texto: data.respuesta.mensaje, frente: data.respuesta.frente });
       }
-    } catch (e) {
-      setCargando(false);
-    }
-  };
-
-  const compartirConWhatsApp = async () => {
-    const ultimo = [...mensajes].reverse().find(m => m.tipo === 'agia' && m.texto);
-    if (!ultimo) return;
-    await Share.share({ message: ultimo.texto });
+    } catch (e) { setCargando(false); }
   };
 
   return (
     <SafeAreaView style={estilos.contenedor}>
       <StatusBar barStyle="light-content" backgroundColor={COLORES.fondoOscuro} />
-
-      {/* Header */}
       <View style={estilos.header}>
-        <View style={estilos.logo}>
-          <Text style={estilos.logoTexto}>AG</Text>
-        </View>
+        <View style={estilos.logo}><Text style={estilos.logoTexto}>AG</Text></View>
         <View style={estilos.headerInfo}>
           <Text style={estilos.headerTitulo}>AGIA</Text>
           <Text style={estilos.headerSub}>Asistente de Gerencia · FMC DataLab</Text>
         </View>
         <View style={estilos.dot} />
       </View>
-
-      {/* Lista de mensajes */}
       <KeyboardAvoidingView
         style={estilos.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
         <FlatList
           ref={listaRef}
@@ -186,10 +145,16 @@ export default function ChatScreen({ route }) {
           renderItem={({ item }) => <BurbujaMensaje item={item} />}
           contentContainerStyle={estilos.lista}
           onContentSizeChange={() => listaRef.current?.scrollToEnd({ animated: true })}
-          ListFooterComponent={cargando ? <IndicadorEscribiendo /> : null}
+          ListFooterComponent={cargando ? (
+            <View style={estilos.contenedorBurbuja}>
+              <Text style={estilos.etiqueta}>AGIA</Text>
+              <View style={[estilos.burbuja, estilos.burbujaAGIA, { flexDirection: 'row', gap: 8 }]}>
+                <ActivityIndicator size="small" color={COLORES.azulLight} />
+                <Text style={{ color: COLORES.textoSecundario, fontSize: 13 }}>Procesando...</Text>
+              </View>
+            </View>
+          ) : null}
         />
-
-        {/* Input */}
         <View style={estilos.inputArea}>
           <TextInput
             style={estilos.input}
@@ -199,17 +164,13 @@ export default function ChatScreen({ route }) {
             placeholderTextColor={COLORES.textoTerciario}
             multiline
             maxLength={1000}
-            onSubmitEditing={enviar}
-            returnKeyType="send"
-            blurOnSubmit={false}
           />
           <TouchableOpacity
-            style={[estilos.btnEnviar, (!entrada.trim() || cargando) && estilos.btnEnviarDesactivado]}
+            style={[estilos.btnEnviar, (!entrada.trim() || cargando) && estilos.btnDesactivado]}
             onPress={enviar}
             disabled={!entrada.trim() || cargando}
-            activeOpacity={0.7}
           >
-            <Text style={estilos.btnEnviarIcono}>▶</Text>
+            <Text style={estilos.btnIcono}>▶</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -220,98 +181,46 @@ export default function ChatScreen({ route }) {
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: COLORES.fondo },
   flex: { flex: 1 },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORES.fondoOscuro,
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: COLORES.borde,
-  },
-  logo: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: COLORES.azul,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: COLORES.fondoOscuro, paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: COLORES.borde },
+  logo: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORES.azul,
+    alignItems: 'center', justifyContent: 'center' },
   logoTexto: { color: '#fff', fontSize: 13, fontWeight: '600' },
   headerInfo: { flex: 1 },
   headerTitulo: { color: COLORES.texto, fontSize: 15, fontWeight: '600' },
   headerSub: { color: COLORES.textoSecundario, fontSize: 10, marginTop: 1 },
-  dot: {
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: COLORES.verde,
-  },
-
-  lista: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
-
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORES.verde },
+  lista: { paddingHorizontal: 16, paddingVertical: 12 },
   contenedorBurbuja: { alignItems: 'flex-start', marginBottom: 8 },
   contenedorUsuario: { alignItems: 'flex-end' },
   etiqueta: { fontSize: 10, color: COLORES.textoTerciario, marginBottom: 3 },
   etiquetaDerecha: { textAlign: 'right' },
-
-  burbuja: {
-    maxWidth: '84%', paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 16,
-  },
-  burbujaAGIA: {
-    backgroundColor: COLORES.fondoTarjeta,
-    borderWidth: 1, borderColor: COLORES.borde,
-    borderBottomLeftRadius: 3,
-  },
-  burbujaUsuario: {
-    backgroundColor: COLORES.azul,
-    borderBottomRightRadius: 3,
-  },
-  burbujaEscribiendo: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-  },
+  burbuja: { maxWidth: '84%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
+  burbujaAGIA: { backgroundColor: COLORES.fondoTarjeta, borderWidth: 1,
+    borderColor: COLORES.borde, borderBottomLeftRadius: 3 },
+  burbujaUsuario: { backgroundColor: COLORES.azul, borderBottomRightRadius: 3 },
   textoBurbuja: { color: COLORES.texto, fontSize: 14, lineHeight: 21 },
   textoUsuario: { color: '#fff' },
-  textoEscribiendo: { color: COLORES.textoSecundario, fontSize: 13 },
-
-  badge: {
-    alignSelf: 'flex-start', marginTop: 6,
-    paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 20,
-  },
+  badge: { alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 8,
+    paddingVertical: 2, borderRadius: 20 },
   badgeTexto: { fontSize: 10, fontWeight: '500' },
-
-  aprobacionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginTop: 6, flexWrap: 'wrap',
-  },
+  aprobacionRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   aprobacionTexto: { color: COLORES.textoSecundario, fontSize: 12 },
-  btnSi: {
-    backgroundColor: COLORES.verde + '30',
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 20, borderWidth: 1,
-    borderColor: COLORES.verde,
-  },
+  btnSi: { backgroundColor: COLORES.verde + '30', paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORES.verde },
   btnSiTexto: { color: COLORES.verde, fontSize: 12, fontWeight: '500' },
-  btnNo: {
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 20, borderWidth: 1,
-    borderColor: COLORES.borde,
-  },
+  btnNo: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20,
+    borderWidth: 1, borderColor: COLORES.borde },
   btnNoTexto: { color: COLORES.textoSecundario, fontSize: 12 },
-
-  inputArea: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: COLORES.fondoTarjeta,
-    borderTopWidth: 1, borderTopColor: COLORES.borde,
-  },
-  input: {
-    flex: 1, backgroundColor: COLORES.fondoInput,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    color: COLORES.texto, fontSize: 14, lineHeight: 20,
-    borderWidth: 1, borderColor: COLORES.bordeInput,
-    maxHeight: 120,
-  },
-  btnEnviar: {
-    width: 42, height: 42, borderRadius: 21,
-    backgroundColor: COLORES.azul,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  btnEnviarDesactivado: { opacity: 0.4 },
-  btnEnviarIcono: { color: '#fff', fontSize: 16 },
+  inputArea: { flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 12, backgroundColor: COLORES.fondoTarjeta,
+    borderTopWidth: 1, borderTopColor: COLORES.borde },
+  input: { flex: 1, backgroundColor: COLORES.fondoInput, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10, color: COLORES.texto, fontSize: 14,
+    borderWidth: 1, borderColor: COLORES.bordeInput, maxHeight: 120 },
+  btnEnviar: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORES.azul,
+    alignItems: 'center', justifyContent: 'center' },
+  btnDesactivado: { opacity: 0.4 },
+  btnIcono: { color: '#fff', fontSize: 16 },
 });
