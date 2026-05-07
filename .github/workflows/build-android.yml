@@ -18,13 +18,18 @@ jobs:
         with:
           node-version: 18
 
-      - name: Instalar dependencias
-        run: npm install
+      - name: Instalar dependencias del proyecto
+        run: npm ci
 
-      - name: Instalar EAS CLI
-        run: npm install -g eas-cli
+      - name: Instalar EAS CLI globalmente
+        run: npm install -g eas-cli@latest
+
+      - name: Verificar autenticación con Expo
+        run: eas whoami
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build APK Android
-        run: eas build --platform android --profile preview --non-interactive
+        run: eas build --platform android --profile preview --non-interactive --no-wait
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
